@@ -1,0 +1,123 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user profile and personal registration data stored in Firestore.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Verified email address from Google Sign-In."
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "Optional Google profile photo URL."
+        },
+        "fullName": {
+          "type": "string",
+          "description": "User's full legal or display name."
+        },
+        "username": {
+          "type": "string",
+          "description": "Unique handle chosen during registration."
+        },
+        "phone": {
+          "type": "string",
+          "description": "User's phone or WhatsApp number."
+        },
+        "birthDate": {
+          "type": "string",
+          "description": "User's date of birth (DD/MM/YYYY)."
+        },
+        "gender": {
+          "type": "string",
+          "enum": ["Laki-laki", "Perempuan", "Lainnya"],
+          "description": "User's gender selection."
+        },
+        "city": {
+          "type": "string",
+          "description": "User's city of residence."
+        },
+        "occupation": {
+          "type": "string",
+          "description": "Optional occupation or profession."
+        },
+        "bio": {
+          "type": "string",
+          "description": "Optional short personal biography."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when registration was created (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when profile was last updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "fullName",
+        "username",
+        "phone",
+        "birthDate",
+        "gender",
+        "city",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Audit trail of sign-in, registration, and profile update events for the user.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID."
+        },
+        "action": {
+          "type": "string",
+          "enum": ["REGISTER", "LOGIN", "UPDATE_PROFILE"],
+          "description": "Type of account activity."
+        },
+        "title": {
+          "type": "string",
+          "description": "Short activity headline."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed activity summary."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the activity (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "action",
+        "title",
+        "description",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user registration profile document keyed by Firebase Auth UID."
+    },
+    "/users/{userId}/activities/{activityId}": {
+      "schema": { "$ref": "#/entities/ActivityLog" },
+      "description": "User-scoped authentication and profile activity history."
+    }
+  }
+}

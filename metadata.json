@@ -1,0 +1,6 @@
+{
+  "name": "LuminaID",
+  "description": "Aplikasi login dan registrasi data diri modern bertema glassmorphism dengan Firebase Auth dan Firestore.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,105 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable hardened helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() {
+      return request.resource.data;
+    }
+    function existing() {
+      return resource.data;
+    }
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Entity validation: UserProfile
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 60 &&
+             data.username is string && data.username.size() >= 3 && data.username.size() <= 30 && data.username.matches('^[a-zA-Z0-9_.]+$') &&
+             data.phone is string && data.phone.size() >= 6 && data.phone.size() <= 20 &&
+             data.birthDate is string && data.birthDate.size() >= 4 && data.birthDate.size() <= 20 &&
+             data.gender in ['Laki-laki', 'Perempuan', 'Lainnya'] &&
+             data.city is string && data.city.size() >= 2 && data.city.size() <= 50 &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 120)) &&
+             (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+             (!('occupation' in data) || (data.occupation is string && data.occupation.size() <= 60)) &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() <= 200));
+    }
+
+    // Entity validation: ActivityLog
+    function isValidActivityLog(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.action in ['REGISTER', 'LOGIN', 'UPDATE_PROFILE'] &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 80 &&
+             data.description is string && data.description.size() >= 1 && data.description.size() <= 160;
+    }
+
+    match /users/{userId} {
+      // Strictly owner-only read to protect PII (email, phone, birthDate)
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if isSignedIn() && request.auth.uid == userId;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'fullName', 'username', 'phone',
+                         'birthDate', 'gender', 'city', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'email', 'photoUrl', 'fullName', 'username',
+                         'phone', 'birthDate', 'gender', 'city', 'occupation',
+                         'bio', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp &&
+                       incoming().updatedAt <= request.time &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp &&
+                       incoming().updatedAt <= request.time &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'email', 'photoUrl', 'fullName', 'username', 'phone',
+                         'birthDate', 'gender', 'city', 'occupation', 'bio', 'updatedAt'
+                       ]);
+
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+      match /activities/{activityId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(activityId) && request.auth.uid == userId;
+        allow list: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(activityId) &&
+                         request.auth.uid == userId &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().keys().hasAll(['userId', 'action', 'title', 'description', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'action', 'title', 'description', 'createdAt']) &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         isValidActivityLog(incoming());
+
+        allow update: if false;
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(activityId) && request.auth.uid == userId;
+      }
+    }
+  }
+}
